@@ -7,11 +7,9 @@
 # Based tweepy. Thanks Joshua Roesslein.
 
 from Pytumb.error import PytumbError
-
-from urllib2 import Request, urlopen
 from urllib import urlencode, quote
 from Pytumb.api import API
-import binascii
+
 try:
     from urlparse import parse_qs
 except ImportError:
@@ -22,8 +20,7 @@ except ImportError:
             param.update({_p[0]: _p[1]})
         return param
 try:
-    import oauth2
-    from oauth.oauth import OAuthRequest, OAuthSignatureMethod_HMAC_SHA1
+    from Pytumb import oauth2
 except ImportError:
     PytumbError('Require: oauth2 module. Please install oauth2 and httplib2.')
 

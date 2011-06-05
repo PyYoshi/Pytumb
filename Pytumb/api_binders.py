@@ -14,7 +14,6 @@ except ImportError:
     raise PytumbError('Require httplib2.')
 import httplib
 import time
-import urllib
 try:
     import urlparse
 except ImportError:
@@ -104,16 +103,16 @@ class Bider4xml(object):
         retries_performed = 0
         while retries_performed < self.api.retry_count + 1:
 
-            #try:
-            if self.api.auth and self.require_auth:
-                resp, content = self.api.auth.apply_oauth_request(url, method=self.method,
-                                             params=self.parameters, file_path=self.file_path,
-                                             max_size=self.max_size)
-            else:
-                client = httplib2.Http()
-                resp, content = client.request(url, self.method)
-            #except Exception, e:
-            #    raise PytumbError('Failed to send request: %s' % e)
+            try:
+                if self.api.auth and self.require_auth:
+                    resp, content = self.api.auth.apply_oauth_request(url, method=self.method,
+                                                 params=self.parameters, file_path=self.file_path,
+                                                 max_size=self.max_size)
+                else:
+                    client = httplib2.Http()
+                    resp, content = client.request(url, self.method)
+            except Exception, e:
+                raise PytumbError('Failed to send request: %s' % e)
 
             if self.api.retry_errors:
                 if resp.status not in self.api.retry_errors:

@@ -17,13 +17,20 @@ ex) Version 1.2.3 Beta
 
 History(Learn more https://github.com/PyYoshi/Pytumb/commits/master/ ):
 0.1.0 Pre-Alpha(2011.05.17): Release library. Add oauth functions.
-0.2.0 Pre-Alpha(2011.05.17): Support Tumblr APIs(Not done yet.)
+0.2.0 Pre-Alpha(2011.06.05): Support Tumblr APIs(Not done yet.)
+0.2.1 Pre-Alpha(2011.06.06): Add Exception handling and bug fix.
+
+TODO:
+    auth.py: 画像・動画などのファイルのmultipart/form-dataサポート
+    model.py: XML・Json以外のレスポンスへの配慮。 エラーパーサーの値を精確に。
+    すべてのモジュールをPython2.5+への配慮
+    
 
 Support APIs:
 Learn api.py
 """
 
-__vesion__ = '0.2.0 Pre-Alpha'
+__vesion__ = '0.2.1 Pre-Alpha'
 __author__ = 'Yoshihiro Misawa'
 __license__ = 'MIT License'
 

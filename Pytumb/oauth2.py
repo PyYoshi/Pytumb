@@ -20,6 +20,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+Fix: Unable encode utf8
+
 """
 
 import base64
@@ -44,10 +47,6 @@ try:
 except ImportError:
     # hashlib was added in Python 2.5
     import sha
-
-import _version
-
-__version__ = _version.__version__
 
 OAUTH_VERSION = '1.0'  # Hi Blaine!
 HTTP_METHOD = 'GET'
