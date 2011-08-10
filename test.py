@@ -5,7 +5,6 @@
 # Copyright 2011 Yoshihiro Misawa
 # See LICENSE for details.
 
-
 from Pytumb.auth import OAuthHandler
 from Pytumb.error import PytumbError
 from Pytumb.api import API
@@ -14,12 +13,18 @@ from wsgiref.simple_server import make_server
 import threading
 import webbrowser
 import sys
-import os
-# TEST Keys
-CONSUMER_KEY = '43VT8u6n4cwUgL8q4dAScAegxMQLOLMzDrD2mduMJYuuvfY7Ep'
-CONSUMER_SECRET = 'JfRKCv6Ry2Rtzdlb9LYUJU8wIRpjxDCf5Zu1EofrcvhdF6puUy'
-ACCESS_TOKEN = None
-ACCESS_SECRET_TOKEN = None
+
+try:
+    import keys
+    CONSUMER_KEY = keys.CONSUMER_KEY
+    CONSUMER_SECRET = keys.CONSUMER_SECRET
+    ACCESS_TOKEN = keys.ACCESS_TOKEN
+    ACCESS_SECRET_TOKEN = keys.ACCESS_SECRET_TOKEN
+except ImportError:
+    CONSUMER_KEY = None
+    CONSUMER_SECRET = None
+    ACCESS_TOKEN = None
+    ACCESS_SECRET_TOKEN = None
 
 # Callback URL: http://127.0.0.1:8956/login/
 
@@ -82,14 +87,14 @@ if ACCESS_TOKEN and ACCESS_SECRET_TOKEN:
         """
         generator = 'Pytumblr'
 
-        ##print api.user_timeline()
+        print api.user_timeline().__dict__
         ##print api.get_status(id=post_id)
         ##print api.home_timeline(num=20)
         ##print api.my_likes()
-        ##print api.update_like(post_id=post_id,reblog_key=reblog_key)
-        ##print api.update_unlike(post_id=post_id, reblog_key=reblog_key)
+        #print api.update_like(post_id=post_id,reblog_key=reblog_key)
+        #print api.update_unlike(post_id=post_id, reblog_key=reblog_key)
         ##print api.get_pages()
-        ##print api.update_regular(title=title, body=body)
+        #print api.update_regular(title=title, body=body)
         ##path = os.path.dirname(os.path.abspath("test_img.jpg"))
         ##print api.update_photo(path + '/test_img.jpg', generator=generator, caption=body)
         #api.update_quote()

@@ -2,3 +2,5 @@
 .idea/
 # .pycファイルの無視
 *.pyc
+# keys.pyファイルの除外
+keys.py

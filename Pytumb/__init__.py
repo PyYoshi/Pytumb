@@ -19,6 +19,7 @@ History(Learn more https://github.com/PyYoshi/Pytumb/commits/master/ ):
 0.1.0 Pre-Alpha(2011.05.17): Release library. Add oauth functions.
 0.2.0 Pre-Alpha(2011.06.05): Support Tumblr APIs(Not done yet.)
 0.2.1 Pre-Alpha(2011.06.06): Add Exception handling and bug fix.
+0.3.0 Change API v2.
 
 TODO:
     auth.py: 画像・動画などのファイルのmultipart/form-dataサポート
@@ -30,14 +31,14 @@ Support APIs:
 Learn api.py
 """
 
-__vesion__ = '0.2.1 Pre-Alpha'
+__vesion__ = '0.3.0 Pre-Alpha'
 __author__ = 'Yoshihiro Misawa'
 __license__ = 'MIT License'
 
 from Pytumb.auth import OAuthHandler
 from Pytumb.error import PytumbError
 from Pytumb.api import API
-from Pytumb.model import Dashboard
+from Pytumb.model import Dashboard, AccountInfo, User, MyLikes, Update, Pages
 
 # Global, unauthenticated instance of API
 api = API()

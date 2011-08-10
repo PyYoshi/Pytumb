@@ -9,7 +9,6 @@
 from Pytumb.error import PytumbError
 from urllib import urlencode, quote
 from Pytumb.api import API
-
 try:
     from urlparse import parse_qs
 except ImportError:
@@ -20,9 +19,10 @@ except ImportError:
             param.update({_p[0]: _p[1]})
         return param
 try:
-    from Pytumb import oauth2
+    import httplib2
 except ImportError:
-    PytumbError('Require: oauth2 module. Please install oauth2 and httplib2.')
+    PytumbError('Install httplib2. ex.) easy_install httplib2')
+from Pytumb import oauth2
 
 class OAuthHandler():
     """OAuth authentication handler"""
@@ -112,21 +112,21 @@ class OAuthHandler():
             else:
                 params['data'] = None
 
-            if params['type'] == 'photo':
+            if params.get('type', None) == 'photo':
                 if params['source'] and params['data']:
                     raise PytumbError('Must  NOT supply both source and data arguments')
 
                 if not params['source'] and not params['data']:
                     raise PytumbError('Must supply source or data argument')
 
-            elif params['type'] == 'video':
+            elif params.get('type', None) == 'video':
                 if params['data'] and params['embed']:
                     raise PytumbError('Must  NOT supply both embed and data arguments')
 
                 if not params['embed'] and not params['data']:
                     raise PytumbError('Must supply embed or data argument')
 
-            elif params['type'] == 'audio':
+            elif params.get('type', None) == 'audio':
                 if params['data'] and params['externally-hosted-url']:
                     raise PytumbError('Must  NOT supply both externally-hosted-url and data arguments')
 

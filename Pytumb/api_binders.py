@@ -131,7 +131,6 @@ class Bider4xml(object):
                 try:
                     error_msg = parser.parse_error(self, content)
                 except Exception:
-                    print content
                     error_msg = 'Tumblr error response: status code = %s ' % resp.status
                 raise PytumbError(error_msg, resp)
 
@@ -139,7 +138,7 @@ class Bider4xml(object):
 
         return result
 
-        
+
 
 
 

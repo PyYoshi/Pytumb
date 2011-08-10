@@ -678,10 +678,10 @@ class Client(httplib2.Http):
         else:
             headers.update(req.to_header(realm=realm))
 
-        #print '============================'
-        #print body
-        #print headers
-        #print '============================'
+        print '============================'
+        print body
+        print headers
+        print '============================'
 
         return httplib2.Http.request(self, uri, method=method, body=body,
             headers=headers, redirections=redirections,
