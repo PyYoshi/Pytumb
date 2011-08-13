@@ -22,10 +22,9 @@ History(Learn more https://github.com/PyYoshi/Pytumb/commits/master/ ):
 0.3.0 Change API v2.
 
 TODO:
-    auth.py: 画像・動画などのファイルのmultipart/form-dataサポート
-    model.py: XML・Json以外のレスポンスへの配慮。 エラーパーサーの値を精確に。
+    api.py: v2ではlike,unlikeが実装されていないのでv1を使用する。またconsumer登録しなくても取れるv1の/api/readをclass OldAPIに実装
     すべてのモジュールをPython2.5+への配慮
-    
+    無駄な処理を見つけ最適化
 
 Support APIs:
 Learn api.py
@@ -38,7 +37,4 @@ __license__ = 'MIT License'
 from Pytumb.auth import OAuthHandler
 from Pytumb.error import PytumbError
 from Pytumb.api import API
-from Pytumb.model import Dashboard, AccountInfo, User, MyLikes, Update, Pages
 
-# Global, unauthenticated instance of API
-api = API()

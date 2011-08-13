@@ -77,35 +77,51 @@ def test_get_atoken(env, res):
 
 if ACCESS_TOKEN and ACCESS_SECRET_TOKEN:
     auth.set_access_token(ACCESS_TOKEN, ACCESS_SECRET_TOKEN)
-    api = API(auth_handler=auth, username='axi1')
+    api = API(auth_handler=auth)
     try:
         post_id = 4208659758
+        delete_post_id = 8876011609
         reblog_key = 'UpE5higT'
         title = 'test'
         body = """
         I'm tumblr bot. Hello everyone!!
         """
-        generator = 'Pytumblr'
+        photo_link = 'http://assets.tumblr.com/images/logo.png'
+        link = 'http://www.tumblr.com/'
+        blog_hostname = 'axi1.tumblr.com'
+        blog_hostname2 = 'renapsfhy.tumblr.com'
+        blog_hostname3 = 'renaphy.tumblr.com'
+        follow_blog_url = 'http://staff.tumblr.com/'
+        file_path = 'test_img.jpg'
 
-        print api.user_timeline().__dict__
-        ##print api.get_status(id=post_id)
-        ##print api.home_timeline(num=20)
-        ##print api.my_likes()
-        #print api.update_like(post_id=post_id,reblog_key=reblog_key)
-        #print api.update_unlike(post_id=post_id, reblog_key=reblog_key)
-        ##print api.get_pages()
-        #print api.update_regular(title=title, body=body)
-        ##path = os.path.dirname(os.path.abspath("test_img.jpg"))
-        ##print api.update_photo(path + '/test_img.jpg', generator=generator, caption=body)
-        #api.update_quote()
-        #api.update_link()
-        #api.update_conversation()
-        #api.update_video(filename)
-        #api.update_audio(filename)
-        #api.editing_post()
-        #api.delete_post()
-        #api.update_reblog()
-        #api.get_account_info()
+        ##print api.get_bloginfo(blog_hostname).__dict__
+        ##print api.get_blogavatar(blog_hostname).__dict__
+        ##print api.get_blogfollowers(blog_hostname3).__dict__
+        ##print api.get_blogposts(blog_hostname3).__dict__
+        ##print api.get_blogposts(blog_hostname3, posts_type='photo').__dict__
+        ##print api.get_queuedposts(blog_hostname3).__dict__
+        ##print api.get_draftposts(blog_hostname3).__dict__
+        ##print api.get_submissionposts(blog_hostname3).__dict__
+        ##print api.update_text(blog_hostname3,body,title).__dict__
+        ##print api.update_photo(blog_hostname3, source=photo_link, link=link, caption=body).__dict__
+        ##print api.update_photo(blog_hostname3, file_path=file_path, link=link, caption=body).__dict__
+        ##print api.update_quote(blog_hostname3).__dict__
+        ##print api.update_link(blog_hostname3).__dict__
+        ##print api.update_chat(blog_hostname3).__dict__
+        ##print api.update_audio(blog_hostname3).__dict__
+        ##print api.update_video(blog_hostname3).__dict__
+        #print api.edit_post(blog_hostname3).__dict__
+        ##print api.update_reblog(blog_hostname3,reblog_key=reblog_key,post_id=post_id).__dict__
+        ##print api.delete_post(blog_hostname3,post_id=delete_post_id).__dict__
+
+        ##print api.get_userinfo().__dict__
+        ##print api.get_dashboard().__dict__
+        ##print api.get_userlikes().__dict__
+        ##print api.get_userfollowing().__dict__
+
+        ##print api.update_follow(follow_blog_url).__dict__
+        ##print api.update_unfollow(follow_blog_url).__dict__
+
     except PytumbError, e:
         print e
 

@@ -8,107 +8,56 @@
 
 from Pytumb.error import PytumbError
 from Pytumb.paser import ModelPaser
+from Pytumb.utils import Utils
+
+import time
+import urllib
+
 try:
     import httplib2
 except ImportError:
     raise PytumbError('Require httplib2.')
-import httplib
-import time
+
 try:
     import urlparse
 except ImportError:
     raise PytumbError('Under Python2.6 is not supported!')
-import urllib
 
-class Bider4xml(object):
+convert_to_utf8_str = Utils.convert_to_utf8_str
 
-    def __init__(self,**config):
+class Binder(object):
+
+    def __init__(self, **config):
         self.api = config.get('api', None)
-        self.json = config.get('json', False)
-        self.host = self.fix_host(config['host'])
-        self.path = config['path']
+        self.api_method_path = config.get('api_method_path', None)
+        self.blog_hostname = config.get('blog_hostname', None)
+        self.api_path = config.get('api_path', None)
+        self.payload = config.get('payload', {})
+        self.status_type = config.get('status_type', 'raw')
+        self.auth_type = config.get('auth_type', None)
         self.method = config.get('method', 'GET')
-        self.status_type = config.get('status_type', None)
-        self.require_auth = config.get('require_auth', False)
-        self.ptype = config.get('ptype', None)
         self.file_path = config.get('file_path', None)
         self.max_size = config.get('max_size', None)
-        self.not_implemented = config.get('not_implemented', False)
-        if self.api.secure:
-            self.scheme = 'https://'
-        else:
-            self.scheme = 'http://'
-
-        self.build_parameters(config.get('kargs', None))
-
-    def build_parameters(self, kargs):
-        self.parameters = {}
-        if kargs is not None:
-            for k, arg in kargs.items():
-                if arg == None:
-                    continue
-                if k in self.parameters:
-                    raise PytumbError('Multiple values for parameter %s supplied!' % k)
-
-                if k == 'reblog_key':
-                    self.parameters['reblog-key'] = convert_to_utf8_str(arg)
-                elif k == 'post_id':
-                    self.parameters['post-id'] = convert_to_utf8_str(arg)
-                elif k == 'send_to_twitter':
-                    self.parameters['send-to-twitter'] = convert_to_utf8_str(arg)
-                elif k == 'click_through_url':
-                    self.parameters['click-through-url'] = convert_to_utf8_str(arg)
-                elif k == 'externally_hosted_url':
-                    self.parameters['externally-hosted-url'] = convert_to_utf8_str(arg)
-                else:
-                    self.parameters[k] = convert_to_utf8_str(arg)
-
-        if self.ptype:
-            self.parameters['type'] = self.ptype
-
-    def fix_host(self, host):
-        # redirect check
-        # FIXME: Waste processing
-        try:
-            conn = httplib.HTTPConnection(host)
-            conn.request('GET', '/')
-            r = conn.getresponse()
-            conn.close()
-            if r.status == 200:
-                return host
-            elif r.status == 301:
-                fix_host = urlparse.urlparse(r.msg['Location']).netloc
-                conn2 = httplib.HTTPConnection(fix_host)
-                conn2.request('GET', '/')
-                r2 = conn2.getresponse()
-                conn2.close()
-                if r2.status == 200:
-                    return fix_host
-            else:
-                raise  PytumbError('Unknown Host: %s' % self.host)
-
-        except httplib.HTTPException, e:
-            raise PytumbError(e)
-
 
     def execute(self):
-        if self.json:
-            url = self.scheme + self.host + self.path + '/json'
-        else:
-            url = self.scheme + self.host + self.path
+        if self.auth_type == 'api_key':
+            self.payload['api_key'] = self.api.auth._consumer.key
 
-        if self.method == 'GET' and len(self.parameters):
-            url = url + '?%s' % (urllib.urlencode(self.parameters))
+        if self.api_method_path == '/blog':
+            url = 'http://' + self.api.api_domain + '/' +self.api.api_version + self.api_method_path  + '/' + self.blog_hostname + self.api_path
+        elif self.api_method_path == '/user':
+            url = 'http://' + self.api.api_domain + '/' +self.api.api_version + self.api_method_path +  self.api_path
 
         retries_performed = 0
         while retries_performed < self.api.retry_count + 1:
 
             try:
-                if self.api.auth and self.require_auth:
+                if self.auth_type == 'oauth':
                     resp, content = self.api.auth.apply_oauth_request(url, method=self.method,
-                                                 params=self.parameters, file_path=self.file_path,
-                                                 max_size=self.max_size)
+                                                 params=self.payload)
                 else:
+                    if self.method == 'GET' and len(self.payload):
+                        url = url + '?' + urllib.urlencode(self.payload)
                     client = httplib2.Http()
                     resp, content = client.request(url, self.method)
             except Exception, e:
@@ -124,28 +73,23 @@ class Bider4xml(object):
             retries_performed += 1
 
         parser = ModelPaser()
-
         self.api.last_response = resp, content
+        ####################################################
+        print self.api.last_response
+        print url
+        ####################################################
         if resp.status != 200:
             if resp.status != 201:
+                error_msg = parser.parse_error(self, content)
+                raise PytumbError(error_msg, resp)
+                """
                 try:
                     error_msg = parser.parse_error(self, content)
                 except Exception:
                     error_msg = 'Tumblr error response: status code = %s ' % resp.status
                 raise PytumbError(error_msg, resp)
+                """
 
-        result = parser.chooseParser(self, content)
+        result = parser.parser(self, content)
 
         return result
-
-
-
-
-
-def convert_to_utf8_str(arg):
-    # written by Michael Norton (http://docondev.blogspot.com/)
-    if isinstance(arg, unicode):
-        arg = arg.encode('utf-8')
-    elif not isinstance(arg, str):
-        arg = str(arg)
-    return arg

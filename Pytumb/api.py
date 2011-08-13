@@ -6,396 +6,690 @@
 # See LICENSE for details.
 
 from Pytumb.error import PytumbError
-from Pytumb.api_binders import Bider4xml
-
+from Pytumb.api_binders import Binder
+from Pytumb.utils import Utils
 import os
 import mimetypes
 
 class API(object):
-    """Tumblr API"""
-    # http://www.tumblr.com/docs/en/api
+    """Tumblr API v2"""
+    # http://www.tumblr.com/docs/en/api/v2
 
-    def __init__(self, auth_handler=None,
-                 username=None,
-                 auth=None,
-                 secure=False,
+    def __init__(self, auth_handler,
                  retry_count=0,
                  retry_delay=0,
                  retry_errors=None,
                  ):
+
         self.auth = auth_handler
-
-        if self.auth:
-            if username:
-                self.username = username
-            else:
-                # Use Login-username
-                ## FIXME: 'hoge'
-                #self.username = self.auth._get_username()
-                self.username = 'hoge'
-        else:
-            if username:
-                self.username = username
-            else:
-                self.username = 'staff'
-
         self.retry_count = retry_count
         self.retry_delay = retry_delay
         self.retry_errors = retry_errors
+        self.api_version = 'v2'
+        self.api_domain = 'api.tumblr.com'
 
-        self.secure = secure
-
-
-    """ /api/read """
-    # http://(user_id).tumblr.com/api/read
-    # start - The post offset to start from. The default is 0.
-    # num - The number of posts to return. The default is 20, and the maximum is 50.
-    # type - The type of posts to return. If unspecified or empty, all types of posts are returned. Must be one of text, quote, photo, link, chat, video, or audio.
-    # id - A specific post ID to return. Use instead of start, num, or type.
-    # filter - Alternate filter to run on the text content. Allowed values:
-        # text - Plain text only. No HTML.
-        # none - No post-processing. Output exactly what the author entered. (Note: Some authors write in Markdown, which will not be converted to HTML when this option is used.)
-    # tagged - Return posts with this tag in reverse-chronological order (newest first).
-        # Optionally specify chrono=1 to sort in chronological order (oldest first).
-    # search - Search for posts with this query.
-    # state (Authenticated read required) - Specify one of the values draft, queue, or submission to list posts in the respective state. (this param is not implemented)
-    def user_timeline(self, **kargs):
-        # params: start, num, type, id, filter, tagged, search,
-        binder = Bider4xml(api = self,
-                    host = self.username + '.tumblr.com',
-                    path = '/api/read',
-                    kargs = kargs,
-                    status_type = 'user',
-                    require_auth = False,
-                    json = True,
-                    method = 'GET')
-        return binder.execute()
-    
-    def get_status(self, **kargs):
-        # params: id
-        binder = Bider4xml(api = self,
-                    host = self.username + '.tumblr.com',
-                    path = '/api/read',
-                    kargs = kargs,
-                    status_type = 'user',
-                    require_auth = False,
-                    json = True,
+    ###########################################################
+    #####                    Blog Methods                 #####
+    ###########################################################
+    """ /info — Retrieve Blog Info """
+    def get_bloginfo(self, blog_hostname):
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = blog_hostname,
+                    api_path = '/info',
+                    status_type = 'bloginfo',
+                    auth_type = 'api_key',
                     method = 'GET')
         return binder.execute()
 
-    """ /api/dashboard """
-    # http://www.tumblr.com/api/dashboard
-    # Authenticated read required.
-    # start, num, type, filter (optional) - Identical to /api/read above. The maximum value of start is 250.
-    # likes (optional) - 1 or 0, default 0. If 1, liked posts will have the liked="true" attribute.
-    def home_timeline(self, **kargs):
-        # params: start, num, type, filter, likes
-        binder =Bider4xml(api = self,
-                    host = 'www.tumblr.com',
-                    path = '/api/dashboard',
-                    kargs = kargs,
-                    status_type = 'dashboard',
-                    require_auth = True,
-                    json = True,
+    """ /avatar — Retrieve a Blog Avatar """
+    def get_blogavatar(self, blog_hostname, size=64):
+        sizes = [16, 24, 30, 40, 48, 64, 96, 128, 512]
+        payload = {}
+        if size:
+            if not isinstance(size, int):
+                raise PytumbError('size is not int type.')
+            if size in sizes:
+                payload['size'] = size
+            else:
+                raise PytumbError('Invalid size. Supported size: %s') % sizes
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = blog_hostname,
+                    api_path = '/avatar',
+                    payload = payload,
+                    status_type = 'binary',
                     method = 'GET')
         return binder.execute()
 
-
-    """ http://www.tumblr.com/api/likes """
-    #start, num, filter (optional) - Identical to /api/read above. The maximum value of start is 1000.
-    def my_likes(self, **kargs):
-        # params: start, num, filter
-         binder = Bider4xml(api = self,
-                    host = 'www.tumblr.com',
-                    path = '/api/likes',
-                    kargs = kargs,
-                    status_type = 'my_likes',
-                    require_auth = True,
-                    json = False,
-                    method = 'GET')
-         return binder.execute()
-
-    """ http://www.tumblr.com/api/like """
-    # post-id - The numeric post ID to like.
-    # reblog-key - The reblog-key value for the specified post from its XML as returned by /api/read or /api/dashboard.
-    # POST request
-    def update_like(self, **kargs):
-        # params: reblog_key, post_id
-        binder = Bider4xml(api = self,
-                    host = 'www.tumblr.com',
-                    path = '/api/like',
-                    kargs = kargs,
-                    status_type = 'update',
-                    require_auth = True,
-                    json = False,
-                    ptype='like',
-                    method = 'POST')
-        return binder.execute()
-
-    """  http://www.tumblr.com/api/unlike """
-    # post-id - The numeric post ID to like.
-    # reblog-key - The reblog-key value for the specified post from its XML as returned by /api/read or /api/dashboard.
-    # POST request
-    def update_unlike(self, **kargs):
-        # params: reblog-key, post-id
-        binder = Bider4xml(api = self,
-                    host = 'www.tumblr.com',
-                    path = '/api/unlike',
-                    allowed_param = ['post-id', 'reblog-key'],
-                    kargs = kargs,
-                    status_type = 'update',
-                    require_auth = True,
-                    json = False,
-                    method = 'POST')
-        return binder.execute()
-
-
-    """ /api/pages """
-    # Not understanded. XD
-    def get_pages(self):
-        # params: Nothing
-        binder = Bider4xml(api = self,
-                    host = self.username + '.tumblr.com',
-                    path = '/api/pages',
-                    require_auth = False,
-                    status_type = 'pages',
-                    json = False,
-                    method = 'GET')
-        return binder.execute()
-
-
-    """ http://www.tumblr.com/api/write """
-    # type - The post type.
-    # (content parameters) - These vary by post type.
-    # generator (optional) - A short description of the application making the request for tracking and statistics, such as "John's Widget 1.0". Must be 64 or fewer characters.
-    # date (optional) - The post date, if different from now, in the blog's timezone. Most unambiguous formats are accepted, such as '2007-12-01 14:50:02'. Dates may not be in the future.
-    # private (optional) - 1 or 0. Whether the post is private. Private posts only appear in the Dashboard or with authenticated links, and do not appear on the blog's main page.
-    # tags (optional) - Comma-separated list of post tags. You may optionally enclose tags in double-quotes.
-    # format (optional) - html or markdown.
-    # group (optional) - Post this to a secondary blog on your account, e.g. mygroup.tumblr.com (for public groups only)
-    # slug (optional) - A custom string to appear in the post's URL: myblog.tumblr.com/post/123456/this-string-right-here. URL-friendly formatting will be applied automatically. Maximum of 55 characters.
-    # state (optional) - One of the following values:
-        # published (default)
-        # draft - Save in the tumblelog's Drafts folder for later publishing.
-        # submission - Add to the tumblelog's Messages folder for consideration.
-        # queue - Add to the tumblelog's queue for automatic publishing in a few minutes or hours. To publish at a specific time in the future instead, specify an additional publish-on parameter with the date expression in the tumblelog's local time (e.g. publish-on=2010-01-01T13:34:00). If the date format cannot be understood, a 401 error will be returned and the post will not be created.
-      # To change the state of an existing post, such as to switch from draft to published, follow the editing process and pass the new value as the state parameter.
-      # Note: If a post has previously been saved as a draft, queue, or submission post, it will be assigned a new post ID the first time it enters the published state.
-    # send-to-twitter (optional, ignored on edits) - One of the following values, if the tumblelog has Twitter integration enabled:
-        # no (default) - Do not send this post to Twitter.
-        # auto - Send to Twitter with an automatically generated summary of the post.
-        # (any other value) - A custom message to send to Twitter for this post.
-      # If this parameter is unspecified, API-created posts will be sent to Twitter if the "Send my Tumblr posts to Twitter" checkbox in the Customize screen is checked.
-
-    # multipart/form-data method, like a file upload box in a web form. Maximum size:
-        # 50 MB for videos
-        # 10 MB for photos
-        # 10 MB for audio
-      # This is recommended since there's much less overhead.
-    # Normal POST method, in which the file's entire binary contents are URL-encoded like any other POST variable. Maximum size:
-        # 5 MB for videos
-        # 5 MB for photos
-        # 5 MB for audio
-    # Return values - We return standard HTTP status codes for each request, plus a plaintext response.
-        # 201 Created - Success! The newly created post's ID is returned.
-        # 403 Forbidden - Your email address or password were incorrect.
-        # 400 Bad Request - There was at least one error while trying to save your post. Errors are sent in plain text, one per line.
-
-    # regular - Requires at least one:
-        # title
-        # body (HTML allowed)
-    def update_regular(self, **kargs):
-        # params: title, body, generator, date, private, tags, format, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        kargs = kargs,
-                        status_type = 'update',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'regular')
-        return binder.execute()
-
-    # photo - Requires either source or data, but not both. If both are specified,source is used.
-        # source - The URL of the photo to copy. This must be a web-accessible URL, not a local file or intranet location.
-        # data - An image file. See File uploads below.
-        # caption (optional, HTML allowed)
-        # click-through-url (optional)
-    def update_photo(self, file_path, **kargs):
-        # params: source, data, caption, click-through-url, generator, date, private, tags, format, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        kargs = kargs,
-                        file_path = file_path,
-                        max_size = 10000,
-                        status_type = 'update_file',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'photo')
-        return binder.execute()
-
-    # quote
-        # quote
-        # source (optional, HTML allowed)
-    def update_quote(self, **kargs):
-        # params: quote, source, generator, date, private, tags, format, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        kargs = kargs,
-                        status_type = 'update',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'quote')
-        return binder.execute()
-
-    # link
-        # name (optional)
-        # url
-        # description (optional, HTML allowed)
-    def update_link(self, **kargs):
-        # params: name, url, description, generator, date, private, tags, format, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        allowed_param = ['type', 'name', 'url', 'description',
-                                        'generator', 'date', 'private', 'tags',
-                                        'format', 'group', 'slug', 'state',
-                                        'send-to-twitter'
-                                        ],
-                        kargs = kargs,
-                        status_type = 'update',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'link')
-        return binder.execute()
-
-    # conversation
-        # title
-        # conversation
-    def update_conversation(self, **kargs):
-        # params: title, conversation, generator, date, private, tags, format, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        kargs = kargs,
-                        status_type = 'update',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'conversation')
-        return binder.execute()
-
-    # video - Requires either embed or data, but not both.
-        # embed - Either the complete HTML code to embed the video, or the URL of a YouTube video page.
-        # data - A video file for a Vimeo upload. See File uploads below.
-        # title (optional) - Only applies to Vimeo uploads.
-        # caption (optional, HTML allowed)
-    def update_video(self, file_path, **kargs):
-        # params: embed, data, title, caption, generator, date, private, tags, format, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        kargs = kargs,
-                        file_path = file_path,
-                        max_size = 50000,
-                        status_type = 'update_file',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'video')
-        return binder.execute()
-
-    # audio
-        # data - An audio file. Must be MP3 or AIFF format. See File uploads below.
-        # externally-hosted-url (optional, replaces data) - Create a post that uses this externally hosted audio-file URL instead of having Tumblr copy and host an uploaded file. Must be MP3 format. No size or duration limits are imposed on externally hosted files.
-        # caption (optional, HTML allowed)
-    def update_audio(self, file_path, **kargs):
-        # params: data, externally-hosted-url, caption, generator, date, private, tags, format, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        kargs = kargs,
-                        file_path = file_path,
-                        max_size = 10000,
-                        status_type = 'update_file',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'audio')
-        return binder.execute()
-
-    # Editing posts
-        # post-id - The integer ID of the post you wish to edit.
-        # type, private, format - These are ignored and can be omitted. These values cannot be changed after post creation.
-        # tags, generator, date - These are optional. If specified, the new values will override the previous values. If omitted, the values are not changed.
-        # You must pass all content parameters for the post's type (e.g. title, body for text posts) even if you are not changing their values.
-    def editing_post(self, **kargs):
-        # params: post-id, generator, date, tags, group, slug, state, send-to-twitter
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/write',
-                        kargs = kargs,
-                        status_type = 'update',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST',
-                        ptype = 'edit',
-                        not_implemented = True)
-        return binder.execute()
-
-
-    """ http://www.tumblr.com/api/delete """
-    # All content-related parameters will be ignored and can be omitted. Only the authentication parameters and post-id are required
-    # pass an additional POST parameter:
-        # post-id - The integer ID of the post you wish to delete.
-    def delete_post(self, **kargs):
-        # param: post-id
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/delete',
-                        kargs = kargs,
-                        status_type = 'delete',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST')
-        return binder.execute()
-
-
-    """ http://www.tumblr.com/api/reblog """
-    # pass these POST parameters:
-        # post-id - The integer ID of the post to reblog.
-        # reblog-key - The corresponding reblog-key value from the post's /api/read XML data.
-        # comment (optional) - Text, HTML, or Markdown string (see format) of the commentary added to the reblog. It will appear below the automatically generated reblogged-content structure. Up to 2000 characters allowed (as UTF-8 characters, not bytes). This field is not supported, and is ignored, for chat posts.
-        # as (optional) - Reblog as a different format from the original post. text, link, and quote are supported.
-      # The format and group parameters from /api/write are also supported.
-    def update_reblog(self, **kargs):
-        # params: post-id, reblog-key, comment, as
-        binder = Bider4xml(api = self,
-                        host = 'www.tumblr.com',
-                        path = '/api/reblog',
-                        require_auth = True,
-                        json = False,
-                        method = 'POST')
-        return binder.execute()
-
-
+    """ /followers — Retrieve a Blog's Followers """
     #
-    def get_account_info(self):
-        # param: Nothing
-        binder = Bider4xml(api = self,
-                    host = 'www.tumblr.com',
-                    path = '/api/authenticate',
-                    status_type = 'accountinfo',
-                    require_auth = True,
-                    json = False,
+    def get_blogfollowers(self, own_blog_hostname, limit=20, offset=0):
+        payload = {}
+        if limit:
+            if not isinstance(limit, int):
+                raise PytumbError('limit is invalid int type.')
+            payload['limit'] = limit
+        if offset:
+            if not isinstance(offset, int):
+                raise PytumbError('offset is invalid int type.')
+            payload['offset'] = offset
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/followers',
+                    payload = payload,
+                    status_type = 'blogfollowers',
+                    auth_type = 'oauth',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /posts – Retrieve Published Posts """
+    #
+    def get_blogposts(self, blog_hostname,posts_type=None, post_id=None, posts_tag=None, limit=20, offset=0, reblog_info=False, notes_info=False,post_format=None):
+        payload = {}
+        if post_id:
+            payload['id'] = post_id
+        if posts_tag:
+            if not isinstance(posts_tag, list):
+                raise PytumbError('posts_tag is invalid list type.')
+            payload['tag'] = posts_tag
+        if limit:
+            if not isinstance(limit, int):
+                raise PytumbError('limit is invalid int type.')
+            payload['limit'] = limit
+        if offset:
+            if not isinstance(offset, int):
+                raise PytumbError('offset is invalid int type.')
+            payload['offset'] = offset
+        if reblog_info:
+            if not isinstance(reblog_info, bool):
+                raise PytumbError('reblog_info is invalid bool type.')
+            payload['reblog_info'] = reblog_info
+        if notes_info:
+            if not isinstance(notes_info, bool):
+                raise PytumbError('notes_info is invalid bool type.')
+            payload['notes_info'] = notes_info
+        if post_format == 'text' or post_format == 'raw':
+            payload['format'] = post_format
+        elif not post_format:
+            pass
+        else:
+            raise PytumbError('post_format must be either "text" or "raw".')
+        
+        if posts_type:
+            api_path = '/posts/' + posts_type
+        else:
+            api_path = '/posts'
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = blog_hostname,
+                    api_path = api_path,
+                    payload = payload,
+                    status_type = 'blogposts',
+                    auth_type = 'api_key',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /posts/queue — Retrieve Queued Posts """
+    #
+    def get_queuedposts(self, own_blog_hostname):
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/posts/queue',
+                    status_type = 'blogposts',
+                    auth_type = 'oauth',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /posts/draft — Retrieve Draft Posts """
+    #
+    def get_draftposts(self, own_blog_hostname):
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/posts/draft',
+                    status_type = 'blogposts',
+                    auth_type = 'oauth',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /posts/submission — Retrieve Submission Posts """
+    #
+    def get_submissionposts(self, own_blog_hostname):
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/posts/submission',
+                    status_type = 'blogposts',
+                    auth_type = 'oauth',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /post — Create a New Blog Post """
+    # Returns 201: Created or an error code.
+    def update_text(self, own_blog_hostname, body, title=None, state='published', tags=[], tweet=None, post_date=None, markdown=False, slug=None):
+        # state = ['published', 'draft', 'queue']
+        # tweet: add tweet message.
+        # post_date: GMT date
+        # markdown: True or False
+        # title: string, html is escaped.
+        # body: html allowed.
+        payload = {}
+        payload['body'] = body
+        if title:
+            payload['title'] = title
+
+        payload['type'] = 'text'
+        if state == 'published' or state == 'draft' or state == 'queue':
+            payload['state'] = state
+        elif not state:
+            pass
+        else:
+            raise PytumbError('state must be either "published" or "draft" or "queue".')
+        if tags:
+            if not isinstance(tags, list):
+                raise PytumbError('tags is invalid list type.')
+            payload['tags'] = tags
+        if tweet:
+            payload['tweet'] = tweet
+        if post_date:
+            payload['date'] = post_date
+        if markdown:
+            if not isinstance(markdown, bool):
+                raise PytumbError('markdown is invalid bool type.')
+            payload['markdown'] = markdown
+        if slug:
+            payload['slug'] = slug
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
                     method = 'POST')
         return binder.execute()
+
+    def update_photo(self, own_blog_hostname, state='published', tags=[], tweet=None, post_date=None, markdown=False, slug=None, caption=None, link=None, source=None, file_path=None):
+        # state: ['published', 'draft', 'queue']
+        # tweet
+        # post_date: GMT date
+        # markdown: True or False
+        # caption: html allowed
+        # link: "click-through URL", photo's source-link.
+        # source: source is link. tumblr fetch photo from link.
+        # file_path:
+
+        payload  = {}
+        if caption:
+            payload['caption'] = caption
+        if link:
+            payload['link'] = link
+        if source and file_path:
+            raise PytumbError('Must be either source or file_path, not both these.')
+        elif source:
+            payload['source'] = source
+        elif file_path:
+            data = Utils.chkFile(file_path, 5000)
+            payload['data'] = data
+        else:
+            raise PytumbError('Must be either source or file_path, not both these.')
+
+        payload['type'] = 'photo'
+        if state == 'published' or state == 'draft' or state == 'queue':
+            payload['state'] = state
+        elif not state:
+            pass
+        else:
+            raise PytumbError('state must be either "published" or "draft" or "queue".')
+        if tags:
+            if not isinstance(tags, list):
+                raise PytumbError('tags is invalid list type.')
+            payload['tags'] = tags
+        if tweet:
+            payload['tweet'] = tweet
+        if post_date:
+            payload['date'] = post_date
+        if markdown:
+            if not isinstance(markdown, bool):
+                raise PytumbError('markdown is invalid bool type.')
+            payload['markdown'] = markdown
+        if slug:
+            payload['slug'] = slug
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    def update_quote(self, own_blog_hostname, quote, state='published', tags=[], tweet=None, post_date=None, markdown=False, slug=None, source=None):
+        # state = ['published', 'draft', 'queue']
+        # tweet
+        # post_date: GMT date
+        # markdown: True or False
+        # quote: html is escaped.
+        # source: html allowed.
+
+        payload = {}
+        payload['quote'] = quote
+        if source:
+            payload['source'] = source
+        payload['type'] = 'quote'
+        if state == 'published' or state == 'draft' or state == 'queue':
+            payload['state'] = state
+        elif not state:
+            pass
+        else:
+            raise PytumbError('state must be either "published" or "draft" or "queue".')
+        if tags:
+            if not isinstance(tags, list):
+                raise PytumbError('tags is invalid list type.')
+            payload['tags'] = tags
+        if tweet:
+            payload['tweet'] = tweet
+        if post_date:
+            payload['date'] = post_date
+        if markdown:
+            if not isinstance(markdown, bool):
+                raise PytumbError('markdown is invalid bool type.')
+            payload['markdown'] = markdown
+        if slug:
+            payload['slug'] = slug
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    def update_link(self, own_blog_hostname, url, state='published', tags=[], tweet=None, post_date=None, markdown=False, slug=None,description=None):
+        # state = ['published', 'draft', 'queue']
+        # tweet
+        # post_date: GMT date
+        # markdown: True or False
+        # description: html allowed.
+
+        payload = {}
+        payload['link'] = link
+        if description:
+            payload['description'] = description
+        payload['type'] = 'link'
+        if state == 'published' or state == 'draft' or state == 'queue':
+            payload['state'] = state
+        elif not state:
+            pass
+        else:
+            raise PytumbError('state must be either "published" or "draft" or "queue".')
+        if tags:
+            if not isinstance(tags, list):
+                raise PytumbError('tags is invalid list type.')
+            payload['tags'] = tags
+        if tweet:
+            payload['tweet'] = tweet
+        if post_date:
+            payload['date'] = post_date
+        if markdown:
+            if not isinstance(markdown, bool):
+                raise PytumbError('markdown is invalid bool type.')
+            payload['markdown'] = markdown
+        if slug:
+            payload['slug'] = slug
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    def update_chat(self, own_blog_hostname,conversation,state='published', tags=[], tweet=None, post_date=None, markdown=False, slug=None,title=None):
+        # state = ['published', 'draft', 'queue']
+        # tweet
+        # post_date: GMT date
+        # markdown: True or False
+        # title
+        # conversation: conversation/chat with dialogue labels. no html.
+
+        payload = {}
+        payload['conversation'] = conversation
+        if title:
+            payload['title'] = title
+        payload['type'] = 'chat'
+        if state == 'published' or state == 'draft' or state == 'queue':
+            payload['state'] = state
+        elif not state:
+            pass
+        else:
+            raise PytumbError('state must be either "published" or "draft" or "queue".')
+        if tags:
+            if not isinstance(tags, list):
+                raise PytumbError('tags is invalid list type.')
+            payload['tags'] = tags
+        if tweet:
+            payload['tweet'] = tweet
+        if post_date:
+            payload['date'] = post_date
+        if markdown:
+            if not isinstance(markdown, bool):
+                raise PytumbError('markdown is invalid bool type.')
+            payload['markdown'] = markdown
+        if slug:
+            payload['slug'] = slug
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    def update_audio(self, own_blog_hostname,state='published', tags=[], tweet=None, post_date=None, markdown=False, slug=None,caption=None,external_url=None, file_path=None):
+        # state = ['published', 'draft', 'queue']
+        # tweet
+        # post_date: GMT date
+        # markdown: True or False
+        # caption
+        # external_url
+        # file_path
+
+        payload = {}
+        if caption:
+            payload['caption'] = caption
+
+        if external_url and file_path:
+            raise PytumbError('Must be either external_url or file_path, not both these.')
+        elif external_url:
+            payload['external_url'] = external_url
+        elif file_path:
+            data = Utils.chkFile(file_path, 5000)
+            payload['data'] = data
+        else:
+            raise PytumbError('Must be either external_url or file_path, not both these.')
+
+        payload['type'] = 'audio'
+        if state == 'published' or state == 'draft' or state == 'queue':
+            payload['state'] = state
+        elif not state:
+            pass
+        else:
+            raise PytumbError('state must be either "published" or "draft" or "queue".')
+        if tags:
+            if not isinstance(tags, list):
+                raise PytumbError('tags is invalid list type.')
+            payload['tags'] = tags
+        if tweet:
+            payload['tweet'] = tweet
+        if post_date:
+            payload['date'] = post_date
+        if markdown:
+            if not isinstance(markdown, bool):
+                raise PytumbError('markdown is invalid bool type.')
+            payload['markdown'] = markdown
+        if slug:
+            payload['slug'] = slug
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    def update_video(self, own_blog_hostname,state='published', tags=[], tweet=None, post_date=None, markdown=False, slug=None,caption=None, embed=None, file_path=None):
+        # state = ['published', 'draft', 'queue']
+        # tweet
+        # post_date: GMT date
+        # markdown: True or False
+        # caption
+        # embed: html embed code. <embed></embed>
+        # file_path
+
+        payload = {}
+        if caption:
+            payload['caption'] = caption
+
+        if external_url and file_path:
+            raise PytumbError('Must be either external_url or file_path, not both these.')
+        elif embed:
+            payload['embed'] = embed
+        elif file_path:
+            data = Utils.chkFile(file_path, 5000)
+            payload['data'] = data
+        else:
+            raise PytumbError('Must be either external_url or file_path, not both these.')
+
+        payload['type'] = 'video'
+        if state == 'published' or state == 'draft' or state == 'queue':
+            payload['state'] = state
+        elif not state:
+            pass
+        else:
+            raise PytumbError('state must be either "published" or "draft" or "queue".')
+        if tags:
+            if not isinstance(tags, list):
+                raise PytumbError('tags is invalid list type.')
+            payload['tags'] = tags
+        if tweet:
+            payload['tweet'] = tweet
+        if post_date:
+            payload['date'] = post_date
+        if markdown:
+            if not isinstance(markdown, bool):
+                raise PytumbError('markdown is invalid bool type.')
+            payload['markdown'] = markdown
+        if slug:
+            payload['slug'] = slug
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    """ /post/edit – Edit a Blog Post """
+    #　Returns 200: OK (successfully edited) or an error code.
+    def edit_post(self, blog_hostname, post_id, post_type):
+        # post_typeによって必要なパラメを条件にして処理
+        payload = {
+            'id':post_id
+        }
+
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post/edit',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    """ /post/reblog – Reblog a Post """
+    #
+    def update_reblog(self, own_blog_hostname,reblog_key, post_id, comment=None):
+        # Returns 201: Created or an error code.
+        # reblog_key
+        # post_id
+        # comment
+        payload = {}
+        payload['reblog_key'] = reblog_key
+        payload['id'] = post_id
+        if comment:
+            payload['comment'] = comment
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post/reblog',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    """ /post/delete – Delete a Post """
+    # Returns 200: OK (successfully deleted) or an error code.
+    def delete_post(self, own_blog_hostname, post_id):
+        payload = {}
+        payload['id'] = post_id
+        binder = Binder(api = self,
+                    api_method_path = '/blog',
+                    blog_hostname = own_blog_hostname,
+                    api_path = '/post/delete',
+                    payload = payload,
+                    status_type = 'raw',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    ###########################################################
+    #####                    User Methods                 #####
+    ###########################################################
+
+    """ /user/info – Get a User's Information """
+    #
+    def get_userinfo(self):
+        binder = Binder(api = self,
+                    api_method_path = '/user',
+                    api_path = '/info',
+                    status_type = 'userinfo',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    """ /user/dashboard – Retrieve a User's Dashboard """
+    #
+    def get_dashboard(self,limit=20, offset=0, post_type=None, since_id=0, reblog_info=False, notes_info=False):
+        payload = {}
+        if post_type:
+            payload['post_type'] = post_type
+
+        if limit:
+            if not isinstance(limit, int):
+                raise PytumbError('limit is invalid int type.')
+            payload['limit'] = limit
+        if offset:
+            if not isinstance(offset, int):
+                raise PytumbError('offset is invalid int type.')
+            payload['offset'] = offset
+        if since_id:
+            if not isinstance(since_id, int):
+                raise PytumbError('since_id is invalid int type.')
+            payload['since_id'] = since_id
+        if reblog_info:
+            if not isinstance(reblog_info, bool):
+                raise PytumbError('reblog_info is invalid bool type.')
+            payload['reblog_info'] = reblog_info
+        if notes_info:
+            if not isinstance(notes_info, bool):
+                raise PytumbError('notes_info is invalid bool type.')
+            payload['notes_info'] = notes_info
+
+        binder = Binder(api = self,
+                    api_method_path = '/user',
+                    api_path = '/dashboard',
+                    payload = payload,
+                    status_type = 'dashboard',
+                    auth_type = 'oauth',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /user/likes — Retrieve a User's Likes """
+    #
+    def get_userlikes(self,limit=20, offset=0):
+        payload = {}
+        if limit:
+            if not isinstance(limit, int):
+                raise PytumbError('limit is invalid int type.')
+            payload['limit'] = limit
+        if offset:
+            if not isinstance(offset, int):
+                raise PytumbError('offset is invalid int type.')
+            payload['offset'] = offset
+        binder = Binder(api = self,
+                    api_method_path = '/user',
+                    api_path = '/likes',
+                    payload = payload,
+                    status_type = 'userlikes',
+                    auth_type = 'oauth',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /user/following – Retrieve the Blogs a User Is Following """
+    #
+    def get_userfollowing(self, limit=20, offset=0):
+        payload = {}
+        if limit:
+            if not isinstance(limit, int):
+                raise PytumbError('limit is invalid int type.')
+            payload['limit'] = limit
+        if offset:
+            if not isinstance(offset, int):
+                raise PytumbError('offset is invalid int type.')
+            payload['offset'] = offset
+        binder = Binder(api = self,
+                    api_method_path = '/user',
+                    api_path = '/following',
+                    payload = payload,
+                    status_type = 'userfollowing',
+                    auth_type = 'oauth',
+                    method = 'GET')
+        return binder.execute()
+
+    """ /user/follow – Follow a blog """
+    # Returns 200: OK (blog successfully followed) or a 404 (blog was not found)
+    def update_follow(self, blog_url):
+        payload = {}
+        payload['url'] = blog_url
+        binder = Binder(api = self,
+                    api_method_path = '/user',
+                    api_path = '/follow',
+                    payload = payload,
+                    status_type = 'followunfollow',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
+    """ /user/unfollow – Unfollow a blog """
+    # Returns 200: OK (blog successfully unfollowed) or a 404 (blog was not found)
+    def update_unfollow(self, blog_url):
+        payload = {}
+        payload['url'] = blog_url
+        binder = Binder(api = self,
+                    api_method_path = '/user',
+                    api_path = '/unfollow',
+                    payload = payload,
+                    status_type = 'followunfollow',
+                    auth_type = 'oauth',
+                    method = 'POST')
+        return binder.execute()
+
 
     @staticmethod
     def _encode_multipart_formdata(params, file_path, max_size):
@@ -439,16 +733,24 @@ class API(object):
         content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
         return content_type, body
         
+"""
+class OldAPI(object):
 
-class exAPI(object):
+    # ** Deprecated: Function **
+    # Not only required authentication.
 
-    # **Experimental function **
-    # Warning: Terms of is a violation
-    # Scraiping tumblr pages
-
-    """
-    print 'exAPI is Experimental functions.\nTake full responsibility for your actions.'
-    """
     def __init__(self):
         pass
 
+    def user_timeline(self, **kargs):
+        # params: start, num, type, id, filter, tagged, search,
+        binder = Bider4xml(api = self,
+                    host = self.username + '.tumblr.com',
+                    path = '/api/read',
+                    kargs = kargs,
+                    status_type = 'user',
+                    require_auth = False,
+                    json = True,
+                    method = 'GET')
+        return binder.execute()
+"""

@@ -98,47 +98,13 @@ class OAuthHandler():
         self.access_token = oauth2.Token(key, secret)
 
     #
-    def apply_oauth_request(self, url, method, params=None, headers=None, file_path=None, max_size=None):
+    def apply_oauth_request(self, url, method, params=None):
 
         try:
-            if file_path:
-                fp = open(file_path, 'rb')
-                data = fp.read()
-                fp.close()
-                params['data'] = data
-                params['source'] = None
-                params['embed'] = None
-                params['externally-hosted-url'] = None
-            else:
-                params['data'] = None
-
-            if params.get('type', None) == 'photo':
-                if params['source'] and params['data']:
-                    raise PytumbError('Must  NOT supply both source and data arguments')
-
-                if not params['source'] and not params['data']:
-                    raise PytumbError('Must supply source or data argument')
-
-            elif params.get('type', None) == 'video':
-                if params['data'] and params['embed']:
-                    raise PytumbError('Must  NOT supply both embed and data arguments')
-
-                if not params['embed'] and not params['data']:
-                    raise PytumbError('Must supply embed or data argument')
-
-            elif params.get('type', None) == 'audio':
-                if params['data'] and params['externally-hosted-url']:
-                    raise PytumbError('Must  NOT supply both externally-hosted-url and data arguments')
-
-                if not params['externally-hosted-url'] and not params['data']:
-                    raise PytumbError('Must supply externally-hosted-url or data argument')
-
             client = oauth2.Client(consumer=self._consumer, token=self.access_token)
             params = urlencode(params)
-            resp, content = client.request(url, method, params, headers=headers)
+            resp, content = client.request(url, method, params)
             return resp, content
-
-        
         except Exception, e:
             raise PytumbError('Failed to aplly OAuth. Error message: %s' % e)
 

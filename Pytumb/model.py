@@ -7,10 +7,9 @@
 # Based tweepy. Thanks Joshua Roesslein.
 
 from Pytumb.error import PytumbError
-
+import datetime
 
 class Model(object):
-
     def __init__(self, api=None):
         self._api = api
 
@@ -26,149 +25,201 @@ class Model(object):
         def parse(cls, api, json):
             raise NotImplementedError
 
-
-class template(Model):
+class Raw(Model):
     @classmethod
-    def parse(cls, method, json):
+    def parse(cls, method, data):
         api = method.api
-        status = cls(api)
+        raw = cls(api)
+        try:
+            for k, v in data.items():
+                setattr(raw, k, v)
+        except AttributeError:
+            setattr(raw, 'data', data)
+        return raw
 
-class Posts(Model):
+class BlogInfo(Model):
     @classmethod
-    def parse(cls, method, json):
+    def parse(cls, method, data):
         api = method.api
-        post = cls(api)
-        for k, v in json.items():
-            setattr(post, k, v)
-        return post
+        info =cls(api)
+        blog = data.get('blog', data)
+        for k, v in blog.items():
+            setattr(info, k, v)
+        return info
 
     @classmethod
-    def parse_lists(cls, method, json_lists):
-        api = method.api
+    def parse_lists(cls,method,data_lists):
         results = []
-        for json in json_lists:
-            results.append(cls.parse(method, json))
+        for data in data_lists:
+            results.append(cls.parse(method, data))
         return results
 
-class Tumblelog(Model):
+class Binary(Model):
     @classmethod
-    def parse(cls, method, json):
+    def parse(cls, method, data):
         api = method.api
-        tumblelog = cls(api)
-        for k, v in json.items():
-            setattr(tumblelog, k, v)
-        return tumblelog
-
-class Update(Model):
-    @classmethod
-    def parse(cls, method, elem):
-        api = method.api
-        status = cls(api)
-        print elem
-
-class Pages(Model):
-    @classmethod
-    def parse(cls, method, elem):
-        api = method.api
-        status = cls(api)
-        pages = []
-        for n in elem.findall('pages'):
-            for m in n:
-                page = dict()
-                for k, v in m.items():
-                    page[k] = v
-                pages.append(page)
-        setattr(status, 'pages', pages)
-        return status
-
+        binary = cls(api)
+        resp = api.last_response[0]
+        setattr(binary,'content-type', resp['content-type'])
+        setattr(binary, 'content-location', resp['content-location'])
+        setattr(binary, 'content', data)
+        return binary
 
 class User(Model):
     @classmethod
-    def parse(cls, method, json):
+    def parse(cls, method, data):
         api = method.api
-        status = cls(api)
-        for k, v in json.items():
+        user = cls(api)
+        for k, v in data.items():
+            if k == 'blogs':
+                v = BlogInfo.parse_lists(method, v)
+            setattr(user, k, v)
+        return user
+
+    @classmethod
+    def parse_lists(cls, method, data_list):
+        results = []
+        for data in data_list:
+            results.append(cls.parse(method, data))
+        return results
+    
+
+class BlogFollowers(Model):
+    @classmethod
+    def parse(cls, method, data):
+        api = method.api
+        followers = cls(api)
+        for k, v in data.items():
+            if k == 'total_users':
+                v = int(v)
+            if k == 'users':
+                v = User.parse_lists(method, v)
+            setattr(followers, k, v)
+        return followers
+
+class Post(Model):
+    @classmethod
+    def parse(cls, method, data):
+        api = method.api
+        post = cls(api)
+        for k, v in data.items():
+            #if data['type'] == 'photo':
+            #    pass
+            setattr(post, k, v)
+        #print post.__dict__
+        return post
+
+    @classmethod
+    def parse_lists(cls, method, data_lists):
+        results = []
+        for data in data_lists:
+            results.append(cls.parse(method, data))
+        return results
+
+class Photo(Model):
+    @classmethod
+    def parse(cls, method, data):
+        api = method.api
+        photo = cls(api)
+        for k, v in data.items():
+            setattr(photo, k, v)
+        return photo
+
+    @classmethod
+    def parse_lists(cls, method, data_lists):
+        results = []
+        for data in data_lists:
+            results.append(cls.parse(method, data))
+        return results
+
+class BlogPosts(Model):
+    @classmethod
+    def parse(cls, method, data):
+        api = method.api
+        posts = cls(api)
+        for k, v in data.items():
+            if k == 'blogs':
+                v = BlogInfo.parse(method, v)
             if k == 'posts':
-                posts = Posts.parse_lists(method, v)
-                setattr(status, 'posts', posts)
-            elif k == 'tumblelog':
-                tumblelog = Tumblelog.parse(method, v)
-                setattr(status, 'tumblelog', tumblelog)
-            else:
-                setattr(status, k, v)
-        return status
-                
+                v = Post.parse_lists(method, v)
+            if k == 'total_posts':
+                v = int(v)
+            setattr(posts, k, v)
+        return posts
+
+class Update(Model):
+    @classmethod
+    def parse(cls, method, data):
+        api = method.api
+        raw = cls(api)
+        for k, v in data.items():
+            setattr(raw, k, v)
+        return raw
+
+class UserInfo(Model):
+    @classmethod
+    def parse(cls,method, data):
+        api = method.api
+        userinfo = cls(api)
+        for k, v in data['user'].items():
+            if k == 'blogs':
+                v = BlogInfo.parse_lists(method, v)
+            setattr(userinfo, k, v)
+        return userinfo
 
 class Dashboard(Model):
-    # Parse JSON
     @classmethod
-    def parse(cls, method, json):
+    def parse(cls,method, data):
         api = method.api
-        status = cls(api)
-        for k, v in json.items():
+        dashboard = cls(api)
+        for k, v in data.items():
             if k == 'posts':
-                posts = Posts.parse_lists(method, v)
-                setattr(status, 'posts', posts)
-            else:
-                setattr(status, k, v)
-        return status
+                v = Post.parse_lists(method, v)
+            setattr(dashboard,k,v)
+        return dashboard
 
-class MyLikes(Model):
-    # Parse XML
+class UserLikes(Model):
     @classmethod
-    def parse(cls, method, elem):
+    def parse(cls,method,data):
         api = method.api
-        status = cls(api)
-        if method.json:
-            raise PytumbError('%s Model is not Implemented JsonPaser' % method.status_type)
-        posts = []
-        for n in elem.findall('posts'):
-            for m in n:
-                post = dict()
-                for k, v in m.items():
-                    post[k] = v
-                posts.append(post)
-        setattr(status, 'posts', posts)
-        return status
+        likes = cls(api)
+        for k, v in data.items():
+            if k == 'liked_posts':
+                v = Post.parse_lists(method,v)
+            setattr(likes,k,v)
+        return likes
 
-class AccountInfo(Model):
-    # Parse XML
+class UserFollowing(Model):
     @classmethod
-    def parse(cls, method, elem):
+    def parse(cls,method,data):
         api = method.api
-        status = cls(api)
-        if method.json:
-            raise PytumbError('%s Model is not Implemented JsonPaser' % method.status_type)
-        userlimits = []
-        tumblelog = []
+        userfollowing = cls(api)
+        for k,v in data.items():
+            if k == 'blogs':
+                v = BlogInfo.parse_lists(method,v)
+            setattr(userfollowing,k,v)
+        return userfollowing
 
-        for n in elem.findall('user'):
-            obj = dict()
-            obj['default-post-format'] = n.get('default-post-format')
-            obj['can-upload-aiff'] = n.get('can-upload-aiff')
-            obj['can-upload-video'] = n.get('can-upload-video')
-            obj['can-upload-audio'] = n.get('can-upload-audio')
-            obj['max-video-bytes-uploaded'] = n.get('max-video-bytes-uploaded')
-            userlimits.append(obj)
-        for n in elem.findall('tumblelog'):
-            obj = dict()
-            obj['title'] = n.get('title')
-            obj['type'] = n.get('type')
-            obj['private-id'] = n.get('private-id')
-            obj['name'] = n.get('name')
-            obj['url'] = n.get('url')
-            obj['avatar-url'] = n.get('avatar-url')
-            obj['is-primary'] = n.get('is-primary')
-            tumblelog.append(obj)
-        setattr(status, 'userlimits', userlimits)
-        setattr(status, 'tumblelog', tumblelog)
-        return status
-
+class FollowUnfollow(Model):
+    @classmethod
+    def parse(cls,method,data):
+        api = method.api
+        follow = cls(api)
+        resp = api.last_response[0]
+        if resp['status'] == '200':
+            setattr(follow, 'msg', 'OK')
+        else:
+            setattr(follow, 'msg', 'FAILED')
+        return follow
 
 class ModelFactory(object):
+    raw = Raw
+    bloginfo = BlogInfo
+    binary = Binary
+    blogfollowers = BlogFollowers
+    blogposts = BlogPosts
+    userinfo = UserInfo
     dashboard = Dashboard
-    accountinfo = AccountInfo
-    user = User
-    my_likes = MyLikes
-    update = Update
-    pages = Pages
+    userlikes = UserLikes
+    userfollowing = UserFollowing
+    followunfollow = FollowUnfollow
