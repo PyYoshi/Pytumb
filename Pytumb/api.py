@@ -733,14 +733,24 @@ class API(object):
         content_type = 'multipart/form-data; boundary=%s' % BOUNDARY
         return content_type, body
         
-"""
+
 class OldAPI(object):
 
     # ** Deprecated: Function **
     # Not only required authentication.
 
-    def __init__(self):
-        pass
+    def __init__(self, auth_handler,
+                 retry_count=0,
+                 retry_delay=0,
+                 retry_errors=None,
+                 ):
+
+        self.auth = auth_handler
+        self.retry_count = retry_count
+        self.retry_delay = retry_delay
+        self.retry_errors = retry_errors
+        self.api_version = 'v2'
+        self.api_domain = 'api.tumblr.com'
 
     def user_timeline(self, **kargs):
         # params: start, num, type, id, filter, tagged, search,
@@ -753,4 +763,3 @@ class OldAPI(object):
                     json = True,
                     method = 'GET')
         return binder.execute()
-"""
